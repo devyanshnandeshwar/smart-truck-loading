@@ -28,8 +28,12 @@ export interface DealerUser extends BaseUser {
 
 export type AnyUser = WarehouseUser | DealerUser;
 
-export type UserDocument = HydratedDocument<AnyUser>;
-export type WarehouseUserDocument = HydratedDocument<WarehouseUser>;
-export type DealerUserDocument = HydratedDocument<DealerUser>;
+export interface UserInstanceMethods {
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
 
-export type UserModel = Model<AnyUser>;
+export type UserDocument = HydratedDocument<AnyUser, UserInstanceMethods>;
+export type WarehouseUserDocument = HydratedDocument<WarehouseUser, UserInstanceMethods>;
+export type DealerUserDocument = HydratedDocument<DealerUser, UserInstanceMethods>;
+
+export type UserModel = Model<AnyUser, object, UserInstanceMethods>;

@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt';
 import { Schema, model } from 'mongoose';
 import {
   AnyUser,
@@ -7,6 +8,8 @@ import {
   UserRole,
   WarehouseUserDocument,
 } from './user.types';
+
+const BCRYPT_SALT_ROUNDS = 10;
 
 // Role-aware helpers keep schema-level validation close to the data rules.
 const isWarehouseRole = function (this: UserDocument): boolean {
@@ -99,5 +102,26 @@ const userSchema = new Schema<AnyUser, UserModel>(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+
+// Hash credentials only when the password has changed to minimize CPU work.
+userSchema.pre('save', async function (next) {
+  const user = this as UserDocument;
+
+  if (!user.isModified('password')) {
+    return next();
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
+    user.password = await bcrypt.hash(user.password, salt);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+userSchema.methods.comparePassword = async function (candidatePassword: string) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export const User = model<AnyUser, UserModel>('User', userSchema);
