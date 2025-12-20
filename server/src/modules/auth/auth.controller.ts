@@ -1,8 +1,8 @@
 import type { RequestHandler } from 'express';
 import { MongoServerError } from 'mongodb';
 import { ZodError } from 'zod';
-import { registerUser } from './auth.service';
-import { registerSchema } from './auth.validators';
+import { InvalidCredentialsError, loginUser, registerUser } from './auth.service';
+import { loginSchema, registerSchema } from './auth.validators';
 
 const DUPLICATE_KEY_CODE = 11000;
 
@@ -40,5 +40,25 @@ export const registerController: RequestHandler = async (req, res) => {
     // Log server-side while returning a safe response to the client.
     console.error('RegisterControllerError', error);
     return res.status(500).json({ message: 'Unable to register user at this time' });
+  }
+};
+
+export const loginController: RequestHandler = async (req, res) => {
+  try {
+    const payload = await loginSchema.parseAsync(req.body);
+    const result = await loginUser(payload);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ message: 'Validation failed', details: formatZodErrors(error) });
+    }
+
+    if (error instanceof InvalidCredentialsError) {
+      return res.status(401).json({ message: error.message });
+    }
+
+    console.error('LoginControllerError', error);
+    return res.status(500).json({ message: 'Unable to login at this time' });
   }
 };

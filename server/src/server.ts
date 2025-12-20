@@ -5,11 +5,11 @@ import { connectDB } from './config/db';
 dotenv.config();
 
 const PORT = Number(process.env.PORT) || 5001;
-const MONGODB_URI = process.env.MONGODB_URI ?? '';
+const DATABASE_URI = process.env.MONGODB_URI ?? process.env.MONGO_URI ?? '';
 
 const startServer = async () => {
   try {
-    await connectDB(MONGODB_URI);
+    await connectDB(DATABASE_URI);
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

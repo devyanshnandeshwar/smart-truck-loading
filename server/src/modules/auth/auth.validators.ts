@@ -29,3 +29,7 @@ export const registerSchema = z.union([
 ]);
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const loginSchema = baseAuthSchema.pick({ email: true, password: true });
+
+export type LoginInput = z.infer<typeof loginSchema>;
