@@ -147,6 +147,38 @@ export const listShipments = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
+export const getShipmentMetrics = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  if (req.role !== 'WAREHOUSE') {
+    return res.status(403).json({ message: 'Only warehouse users can view shipment metrics' });
+  }
+
+  const filter = { warehouseId: req.userId };
+
+  try {
+    const [totalShipments, optimizedShipments] = await Promise.all([
+      Shipment.countDocuments(filter),
+      Shipment.countDocuments({ ...filter, status: ShipmentStatus.OPTIMIZED }),
+    ]);
+
+    const optimizationPercentage = totalShipments === 0 ? 0 : Number(((optimizedShipments / totalShipments) * 100).toFixed(2));
+
+    return res.status(200).json({
+      metrics: {
+        totalShipments,
+        optimizedShipments,
+        optimizationPercentage,
+      },
+    });
+  } catch (error) {
+    console.error('ShipmentMetricsError', error);
+    return res.status(500).json({ message: 'Unable to fetch shipment metrics at this time' });
+  }
+};
+
 const validatePartialShipment = (body: Record<string, unknown>) => {
   const updates: ShipmentUpdatePayload = {};
   const errors: string[] = [];
