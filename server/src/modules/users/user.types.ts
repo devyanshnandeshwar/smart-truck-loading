@@ -27,6 +27,7 @@ export interface DealerUser extends BaseUser {
 }
 
 export type AnyUser = WarehouseUser | DealerUser;
+export type SafeUser = Omit<AnyUser, 'password'>;
 
 export interface UserInstanceMethods {
   comparePassword(candidatePassword: string): Promise<boolean>;
