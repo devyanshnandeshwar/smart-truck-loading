@@ -101,3 +101,24 @@ export const createShipment = async (req: AuthenticatedRequest, res: Response) =
     return res.status(500).json({ message: 'Unable to create shipment at this time' });
   }
 };
+
+export const listShipments = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  if (req.role !== 'WAREHOUSE') {
+    return res.status(403).json({ message: 'Only warehouse users can view shipments' });
+  }
+
+  try {
+    const shipments = await Shipment.find({ warehouseId: req.userId })
+      .sort({ createdAt: -1 })
+      .select(['status', 'weight', 'volume', 'destination', 'deadline']);
+
+    return res.status(200).json({ shipments });
+  } catch (error) {
+    console.error('ListShipmentsError', error);
+    return res.status(500).json({ message: 'Unable to fetch shipments at this time' });
+  }
+};
