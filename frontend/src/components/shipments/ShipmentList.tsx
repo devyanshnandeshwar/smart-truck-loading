@@ -65,7 +65,7 @@ const ShipmentList = ({ onEdit, onDelete }: ShipmentListProps) => {
 
         const payload = Array.isArray(body?.shipments) ? body.shipments : [];
         const normalized: Shipment[] = payload
-          .map((shipment) => {
+          .map((shipment: any) => {
             const status = shipmentStatuses.includes(shipment.status as ShipmentStatus)
               ? (shipment.status as ShipmentStatus)
               : 'Pending';
@@ -79,7 +79,7 @@ const ShipmentList = ({ onEdit, onDelete }: ShipmentListProps) => {
               deadline: String(shipment.deadline ?? ''),
             };
           })
-          .filter((shipment) => shipment._id);
+          .filter((shipment: Shipment) => shipment._id);
 
         setShipments(normalized);
       } catch (error) {
