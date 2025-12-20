@@ -159,9 +159,10 @@ export const getShipmentMetrics = async (req: AuthenticatedRequest, res: Respons
   const filter = { warehouseId: req.userId };
 
   try {
-    const [totalShipments, optimizedShipments] = await Promise.all([
+    const [totalShipments, optimizedShipments, pendingShipments] = await Promise.all([
       Shipment.countDocuments(filter),
       Shipment.countDocuments({ ...filter, status: ShipmentStatus.OPTIMIZED }),
+      Shipment.countDocuments({ ...filter, status: ShipmentStatus.PENDING }),
     ]);
 
     const optimizationPercentage = totalShipments === 0 ? 0 : Number(((optimizedShipments / totalShipments) * 100).toFixed(2));
@@ -170,6 +171,7 @@ export const getShipmentMetrics = async (req: AuthenticatedRequest, res: Respons
       metrics: {
         totalShipments,
         optimizedShipments,
+        pendingShipments,
         optimizationPercentage,
       },
     });
