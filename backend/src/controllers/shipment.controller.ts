@@ -6,6 +6,8 @@ type UserRole = 'WAREHOUSE' | 'DEALER';
 interface AuthenticatedRequest extends Request {
   userId?: string;
   role?: UserRole;
+  body: Record<string, unknown>;
+  params: Record<string, string>;
 }
 
 interface ValidatedShipmentPayload {
