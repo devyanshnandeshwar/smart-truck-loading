@@ -122,3 +122,111 @@ export const listShipments = async (req: AuthenticatedRequest, res: Response) =>
     return res.status(500).json({ message: 'Unable to fetch shipments at this time' });
   }
 };
+
+const validatePartialShipment = (body: Record<string, unknown>) => {
+  const updates: Partial<ValidatedShipmentPayload> = {};
+  const errors: string[] = [];
+
+  if (body.weight !== undefined) {
+    if (!isPositiveNumber(body.weight)) {
+      errors.push('Weight must be greater than 0');
+    } else {
+      updates.weight = Number(body.weight);
+    }
+  }
+
+  if (body.volume !== undefined) {
+    if (!isPositiveNumber(body.volume)) {
+      errors.push('Volume must be greater than 0');
+    } else {
+      updates.volume = Number(body.volume);
+    }
+  }
+
+  if (body.destination !== undefined) {
+    if (typeof body.destination !== 'string' || body.destination.trim().length === 0) {
+      errors.push('Destination must be a non-empty string');
+    } else {
+      updates.destination = body.destination.trim();
+    }
+  }
+
+  if (body.deadline !== undefined) {
+    const deadline = parseDeadline(body.deadline);
+    if (!deadline) {
+      errors.push('Deadline must be a valid ISO date string');
+    } else {
+      updates.deadline = deadline;
+    }
+  }
+
+  return { errors, updates };
+};
+
+export const updateShipment = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  if (req.role !== 'WAREHOUSE') {
+    return res.status(403).json({ message: 'Only warehouse users can update shipments' });
+  }
+
+  const shipmentId = req.params.id;
+  const { errors, updates } = validatePartialShipment(req.body as Record<string, unknown>);
+
+  if (errors.length > 0) {
+    return res.status(400).json({ message: 'Validation failed', details: errors });
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: 'No valid fields provided for update' });
+  }
+
+  try {
+    const shipment = await Shipment.findOne({ _id: shipmentId, warehouseId: req.userId });
+
+    if (!shipment) {
+      return res.status(404).json({ message: 'Shipment not found' });
+    }
+
+    Object.assign(shipment, updates);
+    await shipment.save();
+
+    return res.status(200).json({ shipment });
+  } catch (error) {
+    console.error('UpdateShipmentError', error);
+    return res.status(500).json({ message: 'Unable to update shipment at this time' });
+  }
+};
+
+export const deleteShipment = async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  if (req.role !== 'WAREHOUSE') {
+    return res.status(403).json({ message: 'Only warehouse users can delete shipments' });
+  }
+
+  const shipmentId = req.params.id;
+
+  try {
+    const shipment = await Shipment.findOne({ _id: shipmentId, warehouseId: req.userId });
+
+    if (!shipment) {
+      return res.status(404).json({ message: 'Shipment not found' });
+    }
+
+    if (shipment.status === ShipmentStatus.IN_TRANSIT) {
+      return res.status(400).json({ message: 'Cannot delete a shipment that is already in transit' });
+    }
+
+    await shipment.deleteOne();
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error('DeleteShipmentError', error);
+    return res.status(500).json({ message: 'Unable to delete shipment at this time' });
+  }
+};
