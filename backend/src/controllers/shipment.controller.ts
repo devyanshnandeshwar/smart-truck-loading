@@ -17,6 +17,10 @@ interface ValidatedShipmentPayload {
   deadline: Date;
 }
 
+type ShipmentUpdatePayload = Partial<ValidatedShipmentPayload> & {
+  status?: ShipmentStatus;
+};
+
 const isPositiveNumber = (value: unknown): value is number => {
   if (typeof value === 'number') {
     return Number.isFinite(value) && value > 0;
@@ -69,6 +73,24 @@ const validateShipmentPayload = (body: Record<string, unknown>) => {
   }
 
   return { errors, payload };
+};
+
+const statusFlow: ShipmentStatus[] = [
+  ShipmentStatus.PENDING,
+  ShipmentStatus.OPTIMIZED,
+  ShipmentStatus.BOOKED,
+  ShipmentStatus.IN_TRANSIT,
+];
+
+const isValidStatusTransition = (current: ShipmentStatus, next: ShipmentStatus) => {
+  const currentIndex = statusFlow.indexOf(current);
+  const nextIndex = statusFlow.indexOf(next);
+
+  if (currentIndex === -1 || nextIndex === -1) {
+    return false;
+  }
+
+  return nextIndex === currentIndex + 1;
 };
 
 export const createShipment = async (req: AuthenticatedRequest, res: Response) => {
@@ -126,7 +148,7 @@ export const listShipments = async (req: AuthenticatedRequest, res: Response) =>
 };
 
 const validatePartialShipment = (body: Record<string, unknown>) => {
-  const updates: Partial<ValidatedShipmentPayload> = {};
+  const updates: ShipmentUpdatePayload = {};
   const errors: string[] = [];
 
   if (body.weight !== undefined) {
@@ -162,6 +184,16 @@ const validatePartialShipment = (body: Record<string, unknown>) => {
     }
   }
 
+  if (body.status !== undefined) {
+    if (typeof body.status !== 'string') {
+      errors.push('Status must be a string value');
+    } else if (!Object.values(ShipmentStatus).includes(body.status as ShipmentStatus)) {
+      errors.push('Status must be one of Pending, Optimized, Booked, In Transit');
+    } else {
+      updates.status = body.status as ShipmentStatus;
+    }
+  }
+
   return { errors, updates };
 };
 
@@ -190,6 +222,13 @@ export const updateShipment = async (req: AuthenticatedRequest, res: Response) =
 
     if (!shipment) {
       return res.status(404).json({ message: 'Shipment not found' });
+    }
+
+    if (updates.status && !isValidStatusTransition(shipment.status, updates.status)) {
+      return res.status(400).json({
+        message: 'Invalid status transition',
+        details: [`Cannot move from ${shipment.status} to ${updates.status}`],
+      });
     }
 
     Object.assign(shipment, updates);
